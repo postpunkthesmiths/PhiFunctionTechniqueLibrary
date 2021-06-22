@@ -14,28 +14,20 @@ class CPPhiFunction(BasicPhiFunction):
             self.P = A
         else:
             raise TypeError('A and B must be a pair of Circle and Polygon')
-        self.Hull = Polygon(self.__BuildHull(self.P))
-        self.SuperP = CustomObject(self.P.Origin,
-                              objects = [self.Hull,self.P],
-                              operator = 'And')
-        if self.P.sgn == -1:
-            self.P.Inverse()
-            self.SuperP.Inverse()
+        self.chi = np.zeros(self.P.Vertices.shape[0])
+        self.omg = np.zeros(self.P.Vertices.shape[0])
+        self.psi = np.zeros(self.P.Vertices.shape[0])
+        self.Evaluate()
 
     def Evaluate(self):
-        self.Hull.Vertices = self.__BuildHull(self.P) # Get rid of it!!!
-        self.Hull.UpdateCoefs()
-        self.Value = self.SuperP.Outline(self.C.Origin) - self.C.R
+        for i in range(self.P.Vertices.shape[0]):
+            self.chi[i] = self.P.Curves[i](self.C.Origin) - self.C.R
+            self.omg[i] = self.C.Outline(self.P.Vertices[i])
+            self.psi[i] = (self.P.Coefs[i-1,1] - self.P.Coefs[i,1]) * (self.C.Origin[0] - self.P.Vertices[i,0]) - \
+                          (self.P.Coefs[i-1,0] - self.P.Coefs[i,0]) * (self.C.Origin[1] - self.P.Vertices[i,1]) + \
+                          self.C.R * (self.P.Coefs[i-1,0] * self.P.Coefs[i,1] - self.P.Coefs[i,0] * self.P.Coefs[i-1,1])
+        self.Value = np.max([
+            self.chi,
+            np.min([self.omg,self.psi],axis=0)
+        ])
         return self.Value
-    
-    def __BuildHull(self, P): # Optimize it!!!
-        coefs = np.empty(P.Coefs.shape)
-        for i in range(-1,len(P.Vertices)-1):
-            coefs[i] = P.Coefs[i] + P.Coefs[i+1]
-        A = coefs[:,0]; B = coefs[:,1]; C = coefs[:,2]
-        vertices = np.empty(P.Vertices.shape)
-        for i in range(-1,len(P.Vertices)-1):
-            x = (B[i] * C[i+1] - B[i+1] * C[i]) / (A[i] * B[i+1] - A[i+1] * B[i])
-            y = (C[i] * A[i+1] - C[i+1] * A[i]) / (A[i] * B[i+1] - A[i+1] * B[i])
-            vertices[i] = [x,y]
-        return vertices
